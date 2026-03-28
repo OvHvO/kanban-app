@@ -35,9 +35,9 @@ export default async function LoginPage() {
   return (
     <div className="flex h-screen w-screen items-center justify-center p-4">
       <Card className="w-full max-w-sm flex flex-col items-center justify-center gap-6 p-8">
-        <h1 className="text-3xl font-bold">🖍️ Login</h1>
+        <h1 className="text-3xl font-bold">Login</h1>
         <p className="text-center text-sm text-slate-500">
-          Sign in to access your Excalidraw-style Kanban board.
+          Sign in to access your PMAP board.
         </p>
         
         <form action={signIn} className="flex flex-col gap-4 w-full">
