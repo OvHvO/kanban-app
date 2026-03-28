@@ -37,7 +37,7 @@ export default async function LoginPage() {
       <Card className="w-full max-w-sm flex flex-col items-center justify-center gap-6 p-8">
         <h1 className="text-3xl font-bold">Login</h1>
         <p className="text-center text-sm text-slate-500">
-          Sign in to access your PMAP board.
+          Sign in to access your PMAP.
         </p>
         
         <form action={signIn} className="flex flex-col gap-4 w-full">
