@@ -3,7 +3,12 @@ import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import type { Task, Profile } from "@/types/kanban";
 
-export default async function Dashboard() {
+import { ProjectSelector } from "@/components/board/ProjectSelector";
+
+export default async function Dashboard(props: {
+  searchParams?: Promise<{ [key: string]: string | undefined }>;
+}) {
+  const searchParams = props.searchParams ? await props.searchParams : {};
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -18,15 +23,13 @@ export default async function Dashboard() {
     .eq("id", user.id)
     .single();
 
-  // Pick their first project out of their max of 3 allowed
-  const { data: memberOf } = await supabase
+  // Fetch ALL projects they are a member of
+  const { data: memberOfAll } = await supabase
     .from("project_members")
     .select("project_id, projects(name)")
-    .eq("user_id", user.id)
-    .limit(1)
-    .single();
+    .eq("user_id", user.id);
 
-  if (!memberOf) {
+  if (!memberOfAll || memberOfAll.length === 0) {
     return (
       <div className="flex h-screen w-screen flex-col items-center justify-center p-8 text-center gap-6 bg-slate-50">
         <h1 className="text-4xl font-bold font-sans">No Projects Found</h1>
@@ -47,8 +50,22 @@ export default async function Dashboard() {
     );
   }
 
-  const projectId = memberOf.project_id;
-  const projectName = (memberOf.projects as any)?.name || "Unknown Project";
+  // Determine active project
+  let projectId = memberOfAll[0].project_id;
+  
+  const requestedProjectId = searchParams.project_id;
+  if (requestedProjectId) {
+    const found = memberOfAll.find((m: any) => m.project_id === requestedProjectId);
+    if (found) {
+      projectId = found.project_id;
+    }
+  }
+
+  // Format all projects for dropdown
+  const allProjects = memberOfAll.map((m: any) => ({
+    id: m.project_id,
+    name: m.projects?.name || "Unknown Project"
+  }));
 
   // Fetch all live tasks and their linked Profile relationships!
   const { data: rawTasks } = await supabase
@@ -71,10 +88,10 @@ export default async function Dashboard() {
 
   return (
     <main className="flex h-screen w-screen flex-col bg-slate-50 font-sans">
-      <header className="flex h-16 shrink-0 items-center justify-between border-b-2 border-slate-200 border-sketchy px-8 bg-white m-4">
-        <h1 className="text-2xl font-bold tracking-tight">ʕง•ᴥ•ʔง ʕ•ᴥ•ʔ ʕ ᵔᴥᵔ ʔ</h1>
+      <header className="relative z-50 flex h-16 shrink-0 items-center justify-between border-b-2 border-slate-200 border-sketchy px-8 bg-white m-4">
+        <h1 className="text-2xl font-bold tracking-tight">PMAP</h1>
         <div className="flex items-center gap-4">
-          <span className="text-sm font-bold text-slate-500 border-sketchy px-4 py-1 bg-slate-100 shadow-[2px_2px_0_#cbd5e1]">Project: {projectName}</span>
+          <ProjectSelector projects={allProjects} activeProjectId={projectId} />
           <div className="h-10 w-10 border-2 rounded-full border-sketchy overflow-hidden shadow-[2px_2px_0_#cbd5e1]">
             <img 
                src={myProfile?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${myProfile?.display_name || user.id}`} 
