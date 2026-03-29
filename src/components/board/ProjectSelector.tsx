@@ -32,7 +32,7 @@ export function ProjectSelector({
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-2 text-sm font-bold text-slate-700 border-sketchy px-4 py-1.5 bg-slate-100 shadow-[2px_2px_0_#cbd5e1] hover:bg-slate-200 transition-colors"
       >
-        <span className="truncate max-w-[150px]">Project: {activeProject?.name}</span>
+        <span className="truncate max-w-[150px]">{activeProject?.name}</span>
         <span className="text-[10px] opacity-70">▼</span>
       </button>
 
