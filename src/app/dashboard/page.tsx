@@ -32,7 +32,7 @@ export default async function Dashboard(props: {
 
   if (!memberOfAll || memberOfAll.length === 0) {
     return (
-      <div className="flex h-screen w-screen flex-col items-center justify-center p-8 text-center gap-6 bg-slate-50">
+      <div className="flex h-screen w-screen flex-col items-center justify-center p-8 text-center gap-6 bg-transparent">
         <h1 className="text-4xl font-bold font-sans">No Projects Found</h1>
         <p className="text-lg text-slate-600">You are securely signed in, but you haven't been assigned to any Kanban boards yet.</p>
         
@@ -106,7 +106,7 @@ export default async function Dashboard(props: {
   }) || [];
 
   return (
-    <main className="flex h-screen w-screen flex-col bg-slate-50 font-sans">
+    <main className="flex h-screen w-screen flex-col bg-transparent font-sans">
       <header className="relative z-50 flex h-16 shrink-0 items-center justify-between border-b-2 border-slate-200 border-sketchy px-8 bg-white m-4">
         <h1 className="text-2xl font-bold tracking-tight">PMAP</h1>
         <div className="flex items-center gap-4">

@@ -218,7 +218,7 @@ export function KanbanBoard({ projectId, initialTasks, currentUserId, projectMem
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
     >
-      <div className="flex flex-col h-full w-full bg-slate-50 overflow-hidden">
+      <div className="flex flex-col h-full w-full bg-transparent overflow-hidden">
         
         {/* TEAM ROSTER STRIP */}
         <div className="flex gap-4 p-4 px-8 mx-4 items-center shrink-0 border-2 border-slate-200 border-sketchy bg-white z-10 shadow-sm relative rounded-xl">
