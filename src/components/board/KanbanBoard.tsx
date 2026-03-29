@@ -51,6 +51,13 @@ export function KanbanBoard({ projectId, initialTasks, currentUserId, projectMem
   const [prModal, setPrModal] = useState<{ open: boolean; task: Task | null }>({ open: false, task: null });
   const [reviewModal, setReviewModal] = useState<{ open: boolean; task: Task | null }>({ open: false, task: null });
   const [deleteModal, setDeleteModal] = useState<{ open: boolean; taskId: string | null }>({ open: false, taskId: null });
+  const [colorModal, setColorModal] = useState<{ open: boolean; member: Profile | null }>({ open: false, member: null });
+
+  const COLOR_PALETTE = [
+    "bg-red-100", "bg-orange-100", "bg-amber-100", "bg-lime-100",
+    "bg-emerald-100", "bg-cyan-100", "bg-sky-100", "bg-indigo-100",
+    "bg-violet-100", "bg-fuchsia-100", "bg-rose-100"
+  ];
 
   // Input states
   const [urlInput, setUrlInput] = useState("");
@@ -148,6 +155,11 @@ export function KanbanBoard({ projectId, initialTasks, currentUserId, projectMem
       return;
     }
 
+    if (activeTask.is_pending_approval) {
+      setAlertMessage("This task is locked for Code Review! The assigned reviewer must click Approve or Reject.");
+      return;
+    }
+
     if (activeTask.status === "Code Review" && overStatus === "Done") {
       setReviewModal({ open: true, task: activeTask });
       return;
@@ -181,9 +193,26 @@ export function KanbanBoard({ projectId, initialTasks, currentUserId, projectMem
     });
   };
 
+  const handleApprove = (taskId: string) => {
+    updateTaskStatus(taskId, "Done", {
+      is_pending_approval: false,
+      pending_reviewer_id: null,
+      reviewer: undefined
+    });
+  };
+
+  const handleReject = (taskId: string) => {
+    updateTaskStatus(taskId, "In Progress", {
+      is_pending_approval: false,
+      pending_reviewer_id: null,
+      reviewer: undefined
+    });
+  };
+
   return (
     <>
     <DndContext
+      id="kanban-board-context"
       sensors={sensors}
       collisionDetection={closestCorners}
       onDragStart={onDragStart}
@@ -195,7 +224,15 @@ export function KanbanBoard({ projectId, initialTasks, currentUserId, projectMem
         <div className="flex gap-4 p-4 px-8 mx-4 items-center shrink-0 border-2 border-slate-200 border-sketchy bg-white z-10 shadow-sm relative rounded-xl">
           <span className="font-bold text-slate-500 font-sans tracking-wide text-sm uppercase mr-2 mt-1 drop-shadow-sm">Team Roster:</span>
           {projectMembers.map((member) => (
-            <DraggableAvatar key={member.id} member={member} />
+            <DraggableAvatar 
+              key={member.id} 
+              member={member} 
+              onClick={() => {
+                if (member.id === currentUserId) {
+                  setColorModal({ open: true, member });
+                }
+              }}
+            />
           ))}
           {projectMembers.length === 0 && (
             <span className="text-sm text-slate-400 italic">No members assigned yet...</span>
@@ -212,6 +249,8 @@ export function KanbanBoard({ projectId, initialTasks, currentUserId, projectMem
               currentUserId={currentUserId}
               onAddTask={col === "To Do" ? () => setCreateModalProps({ open: true }) : undefined}
               onDelete={(taskId) => setDeleteModal({ open: true, taskId })}
+              onApprove={handleApprove}
+              onReject={handleReject}
             />
           ))}
         </div>
@@ -355,7 +394,7 @@ export function KanbanBoard({ projectId, initialTasks, currentUserId, projectMem
               onChange={(e) => setSelectedReviewer(e.target.value)}
             >
               <option value="" disabled>Select a team member</option>
-              {projectMembers.map(m => (
+              {projectMembers.filter(m => m.id !== currentUserId).map(m => (
                 <option key={m.id} value={m.id}>{m.display_name}</option>
               ))}
             </select>
@@ -372,6 +411,48 @@ export function KanbanBoard({ projectId, initialTasks, currentUserId, projectMem
                 setReviewModal({ open: false, task: null });
                 setSelectedReviewer("");
               }}>Request</Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* COLOR PICKER Modal */}
+      {colorModal.open && colorModal.member && (
+        <div className="fixed inset-0 bg-slate-900/40 flex items-center justify-center z-[70] animate-in fade-in duration-200">
+          <Card className="w-96 p-6 border-sketchy shadow-[4px_4px_0_#cbd5e1]">
+            <h3 className="text-xl font-bold mb-2">Pick Your Color 🎨</h3>
+            <p className="mb-6 text-sm text-slate-600">Choose a distinct color to identify your tasks.</p>
+            
+            <div className="flex flex-wrap gap-3 mb-6">
+              {COLOR_PALETTE.map((color) => {
+                const isTaken = projectMembers.some(m => m.id !== colorModal.member?.id && m.color === color);
+                const isSelected = colorModal.member?.color === color;
+                return (
+                  <button
+                    key={color}
+                    disabled={isTaken}
+                    onClick={async () => {
+                      const { updateMemberColorAction } = await import("@/app/actions/kanban");
+                      startTransition(() => {
+                        updateMemberColorAction(projectId, colorModal.member!.id, color).then((res) => {
+                            if (!res) return;
+                            if (!res.success) setAlertMessage("Someone just picked that color! Please try a different one.");
+                        });
+                      });
+                      setColorModal({ open: false, member: null });
+                    }}
+                    className={`w-10 h-10 rounded-full border-2 ${color} ${
+                      isTaken ? "opacity-30 cursor-not-allowed border-slate-200" : 
+                      isSelected ? "border-slate-800 ring-4 ring-slate-300" : "border-sketchy hover:scale-110 transition-transform cursor-pointer"
+                    }`}
+                    title={isTaken ? "Taken by another member" : "Select color"}
+                  />
+                );
+              })}
+            </div>
+
+            <div className="flex justify-end mt-4">
+              <Button variant="ghost" onClick={() => setColorModal({ open: false, member: null })}>Cancel</Button>
             </div>
           </Card>
         </div>

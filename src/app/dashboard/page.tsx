@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import type { Task, Profile } from "@/types/kanban";
 
 import { ProjectSelector } from "@/components/board/ProjectSelector";
+import { GitTreeButton } from "@/components/board/GitTreeButton";
 
 export default async function Dashboard(props: {
   searchParams?: Promise<{ [key: string]: string | undefined }>;
@@ -26,7 +27,7 @@ export default async function Dashboard(props: {
   // Fetch ALL projects they are a member of
   const { data: memberOfAll } = await supabase
     .from("project_members")
-    .select("project_id, projects(name)")
+    .select("project_id, projects(name, github_repo_url)")
     .eq("user_id", user.id);
 
   if (!memberOfAll || memberOfAll.length === 0) {
@@ -64,8 +65,12 @@ export default async function Dashboard(props: {
   // Format all projects for dropdown
   const allProjects = memberOfAll.map((m: any) => ({
     id: m.project_id,
-    name: m.projects?.name || "Unknown Project"
+    name: m.projects?.name || "Unknown Project",
+    github_repo_url: m.projects?.github_repo_url || undefined
   }));
+
+  const activeProj = allProjects.find(p => p.id === projectId);
+  const activeGithubUrl = activeProj?.github_repo_url;
 
   // Fetch all live tasks and their linked Profile relationships!
   const { data: rawTasks } = await supabase
@@ -84,14 +89,40 @@ export default async function Dashboard(props: {
     .select("*, profile:profiles(*)")
     .eq("project_id", projectId);
     
-  const projectMembers: Profile[] = projectMembersAll?.map((pm: any) => pm.profile).filter(Boolean) || [];
+  const projectMembers: Profile[] = projectMembersAll?.map((pm: any) => {
+    if (!pm.profile) return null;
+    return { ...pm.profile, color: pm.color };
+  }).filter(Boolean) || [];
+
+  // Inject colors into the assignees of tasks directly from project members list
+  const initialTasks = rawTasks?.map((t: any) => {
+    if (t.assignee) {
+      const pm = projectMembers.find(m => m.id === t.assignee.id);
+      if (pm && pm.color) {
+        t.assignee.color = pm.color;
+      }
+    }
+    return t;
+  }) || [];
 
   return (
     <main className="flex h-screen w-screen flex-col bg-slate-50 font-sans">
       <header className="relative z-50 flex h-16 shrink-0 items-center justify-between border-b-2 border-slate-200 border-sketchy px-8 bg-white m-4">
         <h1 className="text-2xl font-bold tracking-tight">PMAP</h1>
         <div className="flex items-center gap-4">
-          <ProjectSelector projects={allProjects} activeProjectId={projectId} />
+          <div className="flex items-center gap-3">
+            <ProjectSelector projects={allProjects} activeProjectId={projectId} />
+            {activeGithubUrl ? (
+              <div className="flex items-center gap-2">
+                <a href={activeGithubUrl} target="_blank" rel="noreferrer" className="text-slate-600 hover:text-indigo-600 transition-colors bg-white rounded-full p-1 border-2 border-sketchy hover:-translate-y-1 shadow-sm hover:shadow-[2px_2px_0_#cbd5e1]" title="View GitHub Repository">
+                  <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" />
+                  </svg>
+                </a>
+                <GitTreeButton repoUrl={activeGithubUrl} />
+              </div>
+            ) : null}
+          </div>
           <div className="h-10 w-10 border-2 rounded-full border-sketchy overflow-hidden shadow-[2px_2px_0_#cbd5e1]">
             <img 
                src={myProfile?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${myProfile?.display_name || user.id}`} 
@@ -105,7 +136,7 @@ export default async function Dashboard(props: {
       <div className="flex-1 overflow-hidden">
         <KanbanBoard 
           projectId={projectId}
-          initialTasks={(rawTasks || []) as unknown as Task[]} 
+          initialTasks={initialTasks as unknown as Task[]} 
           currentUserId={user.id} 
           projectMembers={projectMembers} 
         />

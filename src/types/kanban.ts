@@ -4,6 +4,7 @@ export interface Profile {
   id: string;
   display_name: string;
   avatar_url?: string;
+  color?: string | null;
 }
 
 export interface Task {

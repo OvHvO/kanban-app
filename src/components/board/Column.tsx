@@ -12,9 +12,11 @@ interface ColumnProps {
   currentUserId: string;
   onAddTask?: () => void;
   onDelete?: (taskId: string) => void;
+  onApprove?: (taskId: string) => void;
+  onReject?: (taskId: string) => void;
 }
 
-export function Column({ status, tasks, currentUserId, onAddTask, onDelete }: ColumnProps) {
+export function Column({ status, tasks, currentUserId, onAddTask, onDelete, onApprove, onReject }: ColumnProps) {
   const { setNodeRef } = useDroppable({
     id: status,
     data: { type: "Column", status },
@@ -46,7 +48,7 @@ export function Column({ status, tasks, currentUserId, onAddTask, onDelete }: Co
       <div ref={setNodeRef} className="flex flex-1 flex-col gap-2 overflow-y-auto overflow-x-hidden min-h-[200px] no-scrollbar">
         <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
           {tasks.map((task) => (
-            <TaskItem key={task.id} task={task} currentUserId={currentUserId} onDelete={onDelete} />
+            <TaskItem key={task.id} task={task} currentUserId={currentUserId} onDelete={onDelete} onApprove={onApprove} onReject={onReject} />
           ))}
         </SortableContext>
       </div>

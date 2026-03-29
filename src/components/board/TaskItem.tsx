@@ -28,13 +28,16 @@ export function TaskItem({ task, currentUserId, onApprove, onReject, onDelete }:
   };
 
   const isReviewer = currentUserId === task.pending_reviewer_id;
+  const bgColor = task.is_pending_approval
+    ? "bg-amber-50"
+    : task.assignee?.color
+    ? task.assignee.color
+    : "bg-white";
 
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="touch-none pb-2">
       <Card
-        className={`relative flex flex-col gap-2 cursor-grab active:cursor-grabbing ${
-          task.is_pending_approval ? "bg-amber-50" : "bg-white"
-        }`}
+        className={`relative flex flex-col gap-2 cursor-grab active:cursor-grabbing ${bgColor}`}
       >
         <div className="flex justify-between items-start">
           <h4 className="font-bold text-lg leading-tight pr-6 break-words whitespace-normal break-all line-clamp-2">{task.title}</h4>

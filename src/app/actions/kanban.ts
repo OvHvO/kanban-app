@@ -115,3 +115,25 @@ export async function deleteTaskAction(taskId: string) {
   revalidatePath("/dashboard");
   return { success: true };
 }
+
+export async function updateMemberColorAction(projectId: string, userId: string, color: string) {
+  const supabase = await createClient();
+
+  // Try to update. The unique constraint will throw an error if the color is taken.
+  const { error } = await supabase
+    .from("project_members")
+    .update({ color })
+    .match({ project_id: projectId, user_id: userId });
+
+  if (error) {
+    console.error("Failed to update member color:", error);
+    // Specifically check for standard Postgres unique constraint violation
+    if (error.code === '23505') {
+      return { success: false, error: "This color is already taken by another team member." };
+    }
+    return { success: false, error: error.message };
+  }
+
+  revalidatePath("/dashboard");
+  return { success: true };
+}
