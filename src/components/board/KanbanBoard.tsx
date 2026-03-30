@@ -52,6 +52,7 @@ export function KanbanBoard({ projectId, initialTasks, currentUserId, projectMem
   const [reviewModal, setReviewModal] = useState<{ open: boolean; task: Task | null }>({ open: false, task: null });
   const [deleteModal, setDeleteModal] = useState<{ open: boolean; taskId: string | null }>({ open: false, taskId: null });
   const [colorModal, setColorModal] = useState<{ open: boolean; member: Profile | null }>({ open: false, member: null });
+  const [bugFixModal, setBugFixModal] = useState<{ open: boolean; task: Task | null }>({ open: false, task: null });
 
   const COLOR_PALETTE = [
     "bg-red-100", "bg-orange-100", "bg-amber-100", "bg-lime-100",
@@ -124,17 +125,15 @@ export function KanbanBoard({ projectId, initialTasks, currentUserId, projectMem
     // Logic: Validate Transition!
     const isValidTransition = (from: TaskStatus, to: TaskStatus) => {
       if (from === to) return true;
-      if (to === "Bugs" || from === "Bugs") return true; // Anyone can go to Bugs, Bugs can go anywhere
+      if (from === "Bugs") return false; // Bug tasks cannot be dragged out — must use Fix button
+      if (to === "Bugs") return from !== "To Do"; // Only In Progress, Code Review, Done can go to Bugs
       
       const flow = ["To Do", "In Progress", "Code Review", "Done"];
       const fromIndex = flow.indexOf(from);
       const toIndex = flow.indexOf(to);
       
-      // Moving Forward: only 1 step at a time!
+      // Forward only: exactly 1 step at a time, no going back
       if (toIndex - fromIndex === 1) return true;
-      
-      // Moving Backward: Any amount is fine (e.g. from Review back to To Do)
-      if (toIndex < fromIndex) return true;
       
       return false;
     };
@@ -209,6 +208,10 @@ export function KanbanBoard({ projectId, initialTasks, currentUserId, projectMem
     });
   };
 
+  const handleBugFix = (task: Task) => {
+    setBugFixModal({ open: true, task });
+  };
+
   return (
     <>
     <DndContext
@@ -251,6 +254,7 @@ export function KanbanBoard({ projectId, initialTasks, currentUserId, projectMem
               onDelete={(taskId) => setDeleteModal({ open: true, taskId })}
               onApprove={handleApprove}
               onReject={handleReject}
+              onBugFix={handleBugFix}
             />
           ))}
         </div>
@@ -502,6 +506,34 @@ export function KanbanBoard({ projectId, initialTasks, currentUserId, projectMem
                   deleteTaskAction(targetId);
                 });
               }}>Yes, Delete</Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* BUG FIX CONFIRMATION Modal */}
+      {bugFixModal.open && bugFixModal.task && (
+        <div className="fixed inset-0 bg-slate-900/40 flex items-center justify-center z-[60] animate-in fade-in duration-200">
+          <Card className="w-96 p-6 border-sketchy shadow-[4px_4px_0_#cbd5e1]">
+            <h3 className="text-xl font-bold mb-4 text-emerald-600 flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                <polyline points="22 4 12 14.01 9 11.01" />
+              </svg>
+              Confirm Bug Fix?
+            </h3>
+            <p className="mb-2 text-sm text-slate-700 leading-relaxed">
+              This will move <b className="text-slate-900">&apos;{bugFixModal.task.title}&apos;</b> back to <b className="text-indigo-600">In Progress</b>.
+            </p>
+            <p className="mb-6 text-xs text-slate-500">
+              The task will resume from where it left off so you can verify and re-submit the fix.
+            </p>
+            <div className="flex justify-end gap-3 mt-4">
+              <Button variant="ghost" onClick={() => setBugFixModal({ open: false, task: null })}>Cancel</Button>
+              <Button onClick={() => {
+                updateTaskStatus(bugFixModal.task!.id, "In Progress");
+                setBugFixModal({ open: false, task: null });
+              }}>Confirm Fix</Button>
             </div>
           </Card>
         </div>

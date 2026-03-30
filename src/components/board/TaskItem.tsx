@@ -13,9 +13,10 @@ interface TaskItemProps {
   onApprove?: (taskId: string) => void;
   onReject?: (taskId: string) => void;
   onDelete?: (taskId: string) => void;
+  onBugFix?: (task: Task) => void;
 }
 
-export function TaskItem({ task, currentUserId, onApprove, onReject, onDelete }: TaskItemProps) {
+export function TaskItem({ task, currentUserId, onApprove, onReject, onDelete, onBugFix }: TaskItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
     data: { type: "Task", task },
@@ -130,6 +131,22 @@ export function TaskItem({ task, currentUserId, onApprove, onReject, onDelete }:
             ) : (
               <span className="text-xs text-amber-700">Waiting for {task.reviewer?.display_name || "reviewer"}</span>
             )}
+          </div>
+        )}
+
+        {task.status === "Bugs" && onBugFix && (
+          <div className="flex justify-end mt-2">
+            <button
+              onPointerDown={(e) => { e.stopPropagation(); onBugFix(task); }}
+              className="px-3 py-1 text-xs font-bold bg-emerald-500 text-white border-sketchy shadow-[2px_2px_0_#6ee7b7] hover:translate-y-px hover:shadow-[1px_1px_0_#6ee7b7] transition-all flex items-center gap-1"
+              title="Mark as fixed and move back to In Progress"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                <polyline points="22 4 12 14.01 9 11.01" />
+              </svg>
+              Fix
+            </button>
           </div>
         )}
       </Card>
