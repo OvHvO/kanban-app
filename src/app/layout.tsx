@@ -11,6 +11,9 @@ const kalam = Kalam({
 export const metadata: Metadata = {
   title: "Kanban Board",
   description: "Excalidraw-style Kanban Application",
+  icons: {
+    icon: "/bolt.png",
+  },
 };
 
 export default function RootLayout({
