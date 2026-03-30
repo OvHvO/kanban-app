@@ -92,7 +92,7 @@ export function TaskItem({ task, currentUserId, onApprove, onReject, onDelete, o
             onPointerDown={(e) => e.stopPropagation()}
             className="text-xs text-blue-600 hover:underline block truncate max-w-[200px] w-full"
           >
-            Branch: {(() => {
+            -Branch- {(() => {
               try {
                 return new URL(task.github_branch_url).pathname.split("/").pop();
               } catch (_) {
@@ -110,7 +110,7 @@ export function TaskItem({ task, currentUserId, onApprove, onReject, onDelete, o
             onPointerDown={(e) => e.stopPropagation()}
             className="text-xs text-purple-600 hover:underline block truncate max-w-[200px] w-full"
           >
-            PR: {(() => {
+            -PR- {(() => {
               try {
                 return new URL(task.github_pr_url).pathname.split("/").pop();
               } catch (_) {
