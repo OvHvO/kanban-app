@@ -137,3 +137,20 @@ export async function updateMemberColorAction(projectId: string, userId: string,
   revalidatePath("/dashboard");
   return { success: true };
 }
+
+export async function updateRestSeatAction(projectId: string, userId: string, seatIndex: number | null) {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("project_members")
+    .update({ rest_seat: seatIndex })
+    .match({ project_id: projectId, user_id: userId });
+
+  if (error) {
+    console.error("Failed to update rest seat:", error);
+    return { success: false, error: error.message };
+  }
+
+  revalidatePath("/dashboard");
+  return { success: true };
+}

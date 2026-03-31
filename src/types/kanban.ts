@@ -5,6 +5,7 @@ export interface Profile {
   display_name: string;
   avatar_url?: string;
   color?: string | null;
+  rest_seat?: number | null;
 }
 
 export interface Task {

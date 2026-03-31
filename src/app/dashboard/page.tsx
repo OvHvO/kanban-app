@@ -91,7 +91,7 @@ export default async function Dashboard(props: {
     
   const projectMembers: Profile[] = projectMembersAll?.map((pm: any) => {
     if (!pm.profile) return null;
-    return { ...pm.profile, color: pm.color };
+    return { ...pm.profile, color: pm.color, rest_seat: pm.rest_seat ?? null };
   }).filter(Boolean) || [];
 
   // Inject colors into the assignees of tasks directly from project members list
@@ -108,7 +108,7 @@ export default async function Dashboard(props: {
   return (
     <main className="flex h-screen w-screen flex-col bg-transparent font-sans">
       <header className="relative z-50 flex h-16 shrink-0 items-center justify-between border-b-2 border-slate-200 border-sketchy px-8 bg-white m-4">
-        <h1 className="text-2xl font-bold tracking-tight">PMAP</h1>
+        <h1 className="text-2xl font-bold tracking-tight">BOLT PLATFORM</h1>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-3">
             <ProjectSelector projects={allProjects} activeProjectId={projectId} />

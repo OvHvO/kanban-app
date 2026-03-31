@@ -10,6 +10,7 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  useDroppable,
   DragEndEvent,
   DragStartEvent,
 } from "@dnd-kit/core";
@@ -18,9 +19,23 @@ import type { Task, TaskStatus, Profile } from "@/types/kanban";
 import { Column } from "./Column";
 import { TaskItem } from "./TaskItem";
 import { DraggableAvatar } from "./DraggableAvatar";
+import { RestArea } from "./RestArea";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
+
+function TeamRosterDropZone({ children }: { children: React.ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: "team-roster-drop-zone",
+    data: { type: "TeamRoster" },
+  });
+
+  return (
+    <div ref={setNodeRef} className={`flex-1 transition-all duration-200 rounded-xl ${isOver ? "ring-2 ring-emerald-400 ring-offset-2" : ""}`}>
+      {children}
+    </div>
+  );
+}
 
 interface KanbanBoardProps {
   projectId: string;
@@ -31,14 +46,28 @@ interface KanbanBoardProps {
 
 export function KanbanBoard({ projectId, initialTasks, currentUserId, projectMembers }: KanbanBoardProps) {
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
+  const [members, setMembers] = useState<Profile[]>(projectMembers);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [activeMember, setActiveMember] = useState<Profile | null>(null);
+  const [activeRestingMember, setActiveRestingMember] = useState<{member: Profile; seatIndex: number} | null>(null);
   const [isPending, startTransition] = useTransition();
 
   // Sync server changes (e.g., after revalidatePath) to local state
   useEffect(() => {
     setTasks(initialTasks);
   }, [initialTasks]);
+
+  useEffect(() => {
+    setMembers(projectMembers);
+  }, [projectMembers]);
+
+  // Derive rest seats from members' rest_seat field (DB-driven)
+  const restSeats: (Profile | null)[] = [null, null, null, null, null];
+  members.forEach(m => {
+    if (m.rest_seat != null && m.rest_seat >= 0 && m.rest_seat <= 4) {
+      restSeats[m.rest_seat] = m;
+    }
+  });
 
   // Modal states
   const [createModalProps, setCreateModalProps] = useState<{ open: boolean }>({ open: false });
@@ -71,24 +100,72 @@ export function KanbanBoard({ projectId, initialTasks, currentUserId, projectMem
 
   const columns: TaskStatus[] = ["To Do", "In Progress", "Code Review", "Done", "Bugs"];
 
+  // Compute which members are currently resting (not available in roster)
+  const restingMemberIds = new Set(restSeats.filter(Boolean).map(m => m!.id));
+  const rosterMembers = members.filter(m => !restingMemberIds.has(m.id));
+
   const onDragStart = (e: DragStartEvent) => {
     const { active } = e;
     if (active.data.current?.type === "Task") {
       setActiveTask(active.data.current.task);
     } else if (active.data.current?.type === "Member") {
       setActiveMember(active.data.current.member as Profile);
+    } else if (active.data.current?.type === "RestingMember") {
+      setActiveRestingMember({
+        member: active.data.current.member as Profile,
+        seatIndex: active.data.current.seatIndex as number,
+      });
     }
   };
 
   const onDragEnd = (e: DragEndEvent) => {
     setActiveTask(null);
     setActiveMember(null);
+    setActiveRestingMember(null);
     const { active, over } = e;
     if (!over) return;
 
+    // Handle dragging a resting member BACK to roster
+    if (active.data.current?.type === "RestingMember") {
+      const restingMember = active.data.current.member as Profile;
+      const overId = over.id as string;
+      // If dropped on anything that isn't another rest seat, return them to roster
+      if (!overId.startsWith("rest-seat-")) {
+        // Optimistic update: clear rest_seat locally
+        setMembers(prev => prev.map(m => m.id === restingMember.id ? { ...m, rest_seat: null } : m));
+        // Persist to DB
+        startTransition(async () => {
+          const { updateRestSeatAction } = await import("@/app/actions/kanban");
+          updateRestSeatAction(projectId, restingMember.id, null);
+        });
+      }
+      return;
+    }
+
     if (active.data.current?.type === "Member") {
       const draggedMember = active.data.current.member as Profile;
-      const overTaskId = over.id as string;
+      const overId = over.id as string;
+
+      // Check if dropped on a rest seat
+      if (overId.startsWith("rest-seat-")) {
+        // Only allow dragging yourself to rest
+        if (draggedMember.id !== currentUserId) return;
+        const seatIndex = parseInt(overId.replace("rest-seat-", ""), 10);
+        // Only allow if the seat is empty
+        if (restSeats[seatIndex] === null) {
+          // Optimistic update: set rest_seat locally
+          setMembers(prev => prev.map(m => m.id === draggedMember.id ? { ...m, rest_seat: seatIndex } : m));
+          // Persist to DB
+          startTransition(async () => {
+            const { updateRestSeatAction } = await import("@/app/actions/kanban");
+            updateRestSeatAction(projectId, draggedMember.id, seatIndex);
+          });
+        }
+        return;
+      }
+
+      // Otherwise assign to task as before
+      const overTaskId = overId;
       const targetTask = tasks.find(t => t.id === overTaskId);
       
       if (targetTask) {
@@ -223,23 +300,34 @@ export function KanbanBoard({ projectId, initialTasks, currentUserId, projectMem
     >
       <div className="flex flex-col h-full w-full bg-transparent overflow-hidden">
         
-        {/* TEAM ROSTER STRIP */}
-        <div className="flex gap-4 p-4 px-8 mx-4 items-center shrink-0 border-2 border-slate-200 border-sketchy bg-white z-10 shadow-sm relative rounded-xl">
-          <span className="font-bold text-slate-500 font-sans tracking-wide text-sm uppercase mr-2 mt-1 drop-shadow-sm">Team Roster:</span>
-          {projectMembers.map((member) => (
-            <DraggableAvatar 
-              key={member.id} 
-              member={member} 
-              onClick={() => {
-                if (member.id === currentUserId) {
-                  setColorModal({ open: true, member });
-                }
-              }}
-            />
-          ))}
-          {projectMembers.length === 0 && (
-            <span className="text-sm text-slate-400 italic">No members assigned yet...</span>
-          )}
+        {/* TEAM ROSTER + REST AREA STRIP */}
+        <div className="flex gap-3 mx-4 shrink-0 z-10">
+          {/* TEAM ROSTER */}
+          <TeamRosterDropZone>
+            <div className="flex gap-4 p-4 px-8 items-center flex-1 border-2 border-slate-200 border-sketchy bg-white shadow-sm relative rounded-xl">
+              <span className="font-bold text-slate-500 font-sans tracking-wide text-sm uppercase mr-2 mt-1 drop-shadow-sm">Team Roster:</span>
+              {rosterMembers.map((member) => (
+                <DraggableAvatar 
+                  key={member.id} 
+                  member={member} 
+                  onClick={() => {
+                    if (member.id === currentUserId) {
+                      setColorModal({ open: true, member });
+                    }
+                  }}
+                />
+              ))}
+              {rosterMembers.length === 0 && projectMembers.length === 0 && (
+                <span className="text-sm text-slate-400 italic">No members assigned yet...</span>
+              )}
+              {rosterMembers.length === 0 && projectMembers.length > 0 && (
+                <span className="text-sm text-slate-400 italic">Everyone is on break ☕</span>
+              )}
+            </div>
+          </TeamRosterDropZone>
+
+          {/* REST AREA */}
+          <RestArea seats={restSeats} currentUserId={currentUserId} />
         </div>
 
         {/* COLUMNS SCROLL AREA */}
@@ -264,15 +352,19 @@ export function KanbanBoard({ projectId, initialTasks, currentUserId, projectMem
         {activeTask ? (
           <TaskItem task={activeTask} currentUserId={currentUserId} />
         ) : null}
-        {activeMember ? (
+        {(activeMember || activeRestingMember) ? (
           <div className="w-12 h-12 rounded-full border-2 border-sketchy bg-indigo-100 shadow-sketchy-active opacity-90 scale-110 pointer-events-none overflow-hidden ring-4 ring-indigo-300">
-            {activeMember.avatar_url ? (
-              <img src={activeMember.avatar_url} alt="" className="w-full h-full object-cover" />
-            ) : (
-              <span className="flex items-center justify-center font-bold text-lg text-indigo-700 w-full h-full">
-                {activeMember.display_name[0].toUpperCase()}
-              </span>
-            )}
+            {(() => {
+              const m = activeMember || activeRestingMember?.member;
+              if (!m) return null;
+              return m.avatar_url ? (
+                <img src={m.avatar_url} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <span className="flex items-center justify-center font-bold text-lg text-indigo-700 w-full h-full">
+                  {m.display_name[0].toUpperCase()}
+                </span>
+              );
+            })()}
           </div>
         ) : null}
       </DragOverlay>

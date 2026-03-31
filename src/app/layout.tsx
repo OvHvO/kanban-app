@@ -9,8 +9,8 @@ const kalam = Kalam({
 });
 
 export const metadata: Metadata = {
-  title: "Kanban Board",
-  description: "Excalidraw-style Kanban Application",
+  title: "BOLT",
+  description: "PLATFORM FOR HIGH PERFORMANCE TEAMS",
   icons: {
     icon: "/bolt.png",
   },
