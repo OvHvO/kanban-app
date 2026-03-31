@@ -95,12 +95,6 @@ function ChairSeat({ index, occupant, currentUserId }: ChairSeatProps) {
         )}
       </div>
 
-      {/* Name tag */}
-      {occupant && (
-        <span className="text-[9px] font-bold text-slate-500 truncate max-w-[60px] text-center leading-none">
-          {occupant.display_name}
-        </span>
-      )}
     </div>
   );
 }
