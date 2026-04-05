@@ -41,13 +41,6 @@ export default async function LoginPage() {
         </p>
 
         <form action={signIn} className="flex flex-col gap-4 w-full">
-          <input type="hidden" name="provider" value="github" />
-          <Button type="submit" className="w-full text-lg border-2">
-            Continue with GitHub
-          </Button>
-        </form>
-
-        <form action={signIn} className="flex flex-col gap-4 w-full">
           <input type="hidden" name="provider" value="google" />
           <Button type="submit" className="w-full text-lg border-2 bg-white text-black hover:bg-slate-50">
             Continue with Google
